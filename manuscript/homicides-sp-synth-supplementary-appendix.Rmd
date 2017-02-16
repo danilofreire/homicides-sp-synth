@@ -1,0 +1,724 @@
+---
+title: "Supplementary Appendix"
+author: "Danilo Freire"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: 
+  pdf_document: 
+    keep_tex: yes
+    number_sections: yes
+    latex_engine: xelatex
+---
+
+This file accompanies the article "Evaluating the Effect of Homicide Prevention Strategies in São Paulo, Brazil: A Synthetic Control Approach" (2016). Please set your working directory to the `data/` folder.
+
+# Data Wrangling
+
+```{r1,  tidy=TRUE}
+# Clear the workspace
+rm(list = ls())
+
+# Load necessary packages
+library(reshape2)  # data manipulation
+
+# Dependent variable:
+dep <- read.csv("homicide-rates.csv", header = TRUE, skip = 1)
+
+dep.molten <- melt(dep,
+                   id.vars = c("Sigla",
+                               "Código",
+                               "Estado")
+                    )
+
+colnames(dep.molten) <- c("abbreviation",
+                          "code",
+                          "state",
+                          "year",
+                          "homicide.rates")
+
+dep.molten$year <- as.numeric(substring(dep.molten$year, 2))
+
+# Independent variables
+ind1 <- read.csv("state-gdp-capita.csv", header = TRUE, skip = 1)
+
+ind1.molten <- melt(ind1,
+                    id.vars = c("Sigla",
+                                "Código",
+                                "Estado")
+                    )
+
+colnames(ind1.molten) <- c("abbreviation",
+                           "code",
+                           "state",
+                           "year",
+                           "state.gdp.capita")
+
+ind1.molten$year <- as.numeric(substring(ind1.molten$year, 2))
+
+ind2 <- read.csv("state-gdp-growth-percentage.csv", header = TRUE, skip = 1)
+
+ind2.molten <- melt(ind2,
+                    id.vars = c("Sigla",
+                                "Código",
+                                "Estado")
+                    )
+
+colnames(ind2.molten) <- c("abbreviation",
+                           "code",
+                           "state",
+                           "year",
+                           "state.gdp.growth.percent")
+
+ind2.molten$year <- as.numeric(substring(ind2.molten$year, 2))
+
+ind3 <- read.csv("gini.csv", header = TRUE, skip = 1)
+
+ind3.molten <- melt(ind3,
+                    id.vars = c("Sigla",
+                                "Código",
+                                "Estado")
+                    )
+
+colnames(ind3.molten) <- c("abbreviation",
+                           "code",
+                           "state",
+                           "year",
+                           "gini")
+
+ind3.molten$year <- as.numeric(substring(ind3.molten$year, 2))
+
+ind4 <- read.csv("population-projection.csv",
+                 header = TRUE,
+                 skip   = 1)
+
+ind4.molten <- melt(ind4,
+                    id.vars = c("Sigla",
+                                "Código",
+                                "Estado")
+                    )
+
+colnames(ind4.molten) <- c("abbreviation",
+                           "code",
+                           "state",
+                           "year",
+                           "population.projection")
+
+ind4.molten$year <- as.numeric(substring(ind4.molten$year, 2))
+
+ind5 <- read.csv("population-extreme-poverty.csv", header = TRUE, skip = 1)
+
+ind5.molten <- melt(ind5,
+                    id.vars = c("Sigla",
+                                "Código",
+                                "Estado")
+                    )
+
+colnames(ind5.molten) <- c("abbreviation",
+                           "code",
+                           "state",
+                           "year",
+                           "population.extreme.poverty")
+
+ind5.molten$year <- as.numeric(substring(ind5.molten$year, 2))
+
+ind6 <- read.csv("years-schooling.csv", header = TRUE, skip = 1)
+
+ind6.molten <- melt(ind6,
+                    id.vars = c("Sigla",
+                                "Código",
+                                "Estado")
+                    )
+
+colnames(ind6.molten) <- c("abbreviation",
+                           "code",
+                           "state",
+                           "year",
+                           "years.schooling")
+
+ind6.molten$year <- as.numeric(substring(ind6.molten$year, 2))
+
+# Merges files
+data.list <- list(dep.molten,
+                  ind1.molten,
+                  ind2.molten,
+                  ind3.molten,
+                  ind4.molten,
+                  ind5.molten,
+                  ind6.molten)
+
+data1 <- Reduce(function(...) merge(..., all = TRUE), data.list)
+               
+# Subset and sort
+data2 <- subset(data1, year >= 1990 & year <= 2009)
+data2 <- data2[order(data2$state), ]
+rownames(data2) <- NULL
+
+# Count missing observations, calculate their percentage
+round(sapply(data2, function(x) length(which(is.na(x)))), 2)      
+round(sapply(data2, function(x) length(which(is.na(x)))/length(x)), 2)
+
+# Linear imputation of missing values.
+data2$gini.imp <- approxfun(seq_along(data2$gini), data2$gini)(seq_along(data2$gini))
+data2$population.extreme.poverty.imp <-
+        approxfun(seq_along(data2$population.extreme.poverty),
+                  data2$population.extreme.poverty)(seq_along(
+                          data2$population.extreme.poverty))
+data2$years.schooling.imp <- approxfun(seq_along(data2$years.schooling),
+                                       data2$years.schooling)(seq_along(data2$years.schooling))
+
+# Create proportion.extreme.poverty
+data2$proportion.extreme.poverty <- data2$population.extreme.poverty.imp /
+        data2$population.projection
+
+# Transform variables to improve interpretation
+data2$population.projection.ln <- log(data2$population.projection)
+
+# Save data as df.csv
+write.table(data2,
+            "df.csv",
+            row.names = FALSE,
+            col.names = TRUE,
+            sep       = ",")
+```
+
+# Data Analysis
+
+```{r2,  tidy=TRUE}
+# Load necessary packages
+library(dplyr) # data manipulation
+library(Synth) # models
+
+# Load data
+df <- read.csv("/home/sussa/Documents/GitHub/homicides-sp-synth/data/df.csv", header = TRUE)
+
+# Prepare dataset
+df$state <- as.character(df$state) # required by dataprep()
+
+# Plot: Homicide rates for Sao Paulo and Brazil (average)
+df1 <- df %>%
+        mutate(homicide.sp = ifelse(homicide.rates & state == "São Paulo",
+                                    homicide.rates, NA)) %>%
+        select(year, homicide.sp) 
+
+df2 <- df %>%
+        mutate(homicide.rates1 = ifelse(homicide.rates & state != "São Paulo",
+                                        homicide.rates, NA)) %>%
+        group_by(year) %>%
+        summarise(homicide.br = mean(homicide.rates1, na.rm = TRUE)) 
+
+plot(x = df1$year,
+     y = df1$homicide.sp,
+     type = "l",
+     ylim = c(0, 60),
+     xlim = c(1990, 2009), 
+     xlab = "Year",
+     ylab = "Homicide Rates",
+     cex = 3,
+     lwd = 2,
+     xaxs = "i",
+     yaxs = "i"
+)
+
+lines(df2$year,
+      df2$homicide.br,
+      lty = 2, 
+      cex = 3,
+      lwd = 2)
+
+arrows(1997, 50, 1999, 50, 
+       col    = "black",
+       length = .1)
+
+text(1995, 50,
+     "Policy Change",
+     cex = .8)
+
+abline(v   = 1999,
+       lty = 2)
+
+legend(x = "bottomleft",
+       legend = c("São Paulo",
+                  "Brazil (average)"),
+       lty    = c("solid", "dashed"),
+       cex    = .8,
+       bg     = "white",
+       lwdc(2, 2)
+)
+
+# Prepare data for synth
+dataprep.out <-
+        dataprep(df,
+                 predictors = c("state.gdp.capita",
+                                "state.gdp.growth.percent",
+                                "population.projection.ln",
+                                "years.schooling.imp"
+                                ),
+                 special.predictors = list(
+                         list("homicide.rates", 1990:1998, "mean"),
+                         list("proportion.extreme.poverty", 1990:1998, "mean"),
+                         list("gini.imp", 1990:1998, "mean")
+                         ),
+                 predictors.op = "mean",
+                 dependent     = "homicide.rates",
+                 unit.variable = "code",
+                 time.variable = "year",
+                 unit.names.variable   = "state",
+                 treatment.identifier  = 35,
+                 controls.identifier   = c(11:17, 21:27, 31:33, 41:43, 50:53),
+                 time.predictors.prior = c(1990:1998),                 
+                 time.optimize.ssr     = c(1990:1998),
+                 time.plot             = c(1990:2009)
+                 )
+
+# Run synth
+synth.out <- synth(dataprep.out)
+
+# Get result tables
+print(synth.tables   <- synth.tab(
+        dataprep.res = dataprep.out,
+        synth.res    = synth.out)
+      )
+
+# Plot: Main model
+path.plot(synth.res    = synth.out,
+          dataprep.res = dataprep.out,
+          Ylab         = c("Homicide Rates"),
+          Xlab         = c("Year"), 
+          Legend       = c("São Paulo","Synthetic São Paulo"),
+          Legend.position = c("bottomleft")
+) 
+
+abline(v   = 1999,
+       lty = 2)
+
+arrows(1997, 50, 1999, 50, 
+       col    = "black",
+       length = .1)
+
+text(1995, 50,
+     "Policy Change",
+     cex = .8)
+
+# Main model: gaps plot
+gaps.plot(synth.res    = synth.out,
+          dataprep.res = dataprep.out, 
+          Ylab         = c("Gap in Homicide Rates"),
+          Xlab         = c("Year"), 
+          Ylim         = c(-30, 30),
+          Main         = ""
+)
+
+abline(v   = 1999,
+       lty = 2)
+
+arrows(1997, 20, 1999, 20, 
+       col    = "black",
+       length = .1)
+
+text(1995, 20,
+     "Policy Change",
+     cex = .8)
+
+## Calculating how many lives were saved during the treatment period
+
+# Weights below retrieved form dataprep.out
+# State Code  State Weight  State Name        State Abbreviation
+# 42          0.274         Santa Catarina    SC 
+# 53          0.210         Distrito Federal  DF 
+# 32          0.209         Espirito Santo    ES
+# 33          0.169         Rio de Janeiro    RJ
+# 14          0.137         Roraima           RR
+# 14          0.001         Pernambuco        PB
+# 35          treat         Sao Paulo         SP
+
+# Get years after policy change
+df.2 <- df[which(df$year >= 1999),]
+
+# Calculate total number of deaths in SP
+num.deaths.sp <- sum( (df.2$homicide.rates[which(df.2$abbreviation == "SP")])/100000 * (df.2$population.projection[which(df.2$abbreviation == "SP")]))
+
+#Calculate estimated number of deaths in Synthetic São Paulo
+num.deaths.synthetic.sp <- sum( (0.274 * (df.2$homicide.rates[which(df.2$abbreviation == "SC")])/100000 * (df.2$population.projection[which(df.2$abbreviation == "SP")]))
+                                + (0.210 * (df.2$homicide.rates[which(df.2$abbreviation == "DF")])/100000 * (df.2$population.projection[which(df.2$abbreviation == "SP")]))
+                                + (0.209 * (df.2$homicide.rates[which(df.2$abbreviation == "ES")])/100000 * (df.2$population.projection[which(df.2$abbreviation == "SP")]))
+                                + (0.169 * (df.2$homicide.rates[which(df.2$abbreviation == "RJ")])/100000 * (df.2$population.projection[which(df.2$abbreviation == "SP")]))
+                                + (0.137 * (df.2$homicide.rates[which(df.2$abbreviation == "RR")])/100000 * (df.2$population.projection[which(df.2$abbreviation == "SP")]))
+                                + (0.001 * (df.2$homicide.rates[which(df.2$abbreviation == "PB")])/100000 * (df.2$population.projection[which(df.2$abbreviation == "SP")]))
+                                )
+
+lives.saved <- num.deaths.synthetic.sp - num.deaths.sp
+lives.saved # Between 1999 and 2009
+```
+
+# Robustness Tests
+
+```{r3,  tidy=TRUE}
+## Prepare dataset
+df$state <- as.character(df$state) # required by dataprep()
+
+## Placebo Test -- Control ends in 1994
+dataprep.out1 <-
+        dataprep(df,
+                 predictors = c("state.gdp.capita",
+                                "state.gdp.growth.percent",
+                                "population.projection.ln",
+                                "years.schooling.imp"
+                 ),
+                 special.predictors = list(
+                         list("homicide.rates", 1990:1994, "mean"),
+                         list("proportion.extreme.poverty", 1990:1994, "mean"),
+                         list("gini.imp", 1990:1994, "mean")
+                 ),
+                 predictors.op = "mean",
+                 dependent     = "homicide.rates",
+                 unit.variable = "code",
+                 time.variable = "year",
+                 unit.names.variable   = "state",
+                 treatment.identifier  = 35,
+                 controls.identifier   = c(11:17, 21:27, 31:33, 41:43, 50:53),
+                 time.predictors.prior = c(1990:1994),                 
+                 time.optimize.ssr     = c(1990:1994),
+                 time.plot             = c(1990:1998)
+                 )
+
+# Run synth
+synth.out1 <- synth(dataprep.out1)
+
+# Get result tables
+print(synth.tables   <- synth.tab(
+        dataprep.res = dataprep.out1,
+        synth.res    = synth.out1)
+      )
+
+# Placebo test: graph
+path.plot(synth.res       = synth.out1,
+          dataprep.res    = dataprep.out1,
+          Ylab            = c("Homicide Rates"),
+          Xlab            = c("Year"), 
+          Legend          = c("São Paulo","Synthetic São Paulo"),
+          Legend.position = c("bottomleft"),
+          Ylim            = c(0, 50)
+) 
+
+abline(v   = 1995,
+       lty = 2)
+
+arrows(1994, 40, 1995, 40, 
+       col    = "black",
+       length = .1)
+
+text(1993, 40,
+     "Placebo \nPolicy Change",
+     cex = .8)
+
+## Leave-one-out
+
+# Loop over leave one outs
+storegaps <- matrix(NA, length(1990:2009), 4)
+
+colnames(storegaps) <- c(14, 33, 42, 53) # RR, RJ, SC, DF
+co <- unique(df$code) 
+co <- co[-25]
+
+for(k in 1:4){
+        
+        # Data prep for training model
+        omit <- c(14, 33, 42, 53)[k]  
+        
+        # Prepare data for synth
+        dataprep.out2 <-
+                dataprep(df,
+                         predictors = c("state.gdp.capita",
+                                        "state.gdp.growth.percent",
+                                        "population.projection.ln",
+                                        "years.schooling.imp"
+                         ),
+                         special.predictors = list(
+                                 list("homicide.rates", 1990:1998, "mean"),
+                                 list("proportion.extreme.poverty", 1990:1998, "mean"),
+                                 list("gini.imp", 1990:1998, "mean")
+                         ),
+                         predictors.op = "mean",
+                         dependent     = "homicide.rates",
+                         unit.variable = "code",
+                         time.variable = "year",
+                         unit.names.variable   = "state",
+                         treatment.identifier  = 35,
+                         controls.identifier   = co[-which(co==omit)],
+                         time.predictors.prior = c(1990:1998),                 
+                         time.optimize.ssr     = c(1990:1998),
+                         time.plot             = c(1990:2009)
+                )
+   
+        # Run synth
+        synth.out2 <- synth(dataprep.out2)
+        
+        storegaps[,k] <- (dataprep.out2$Y0%*%synth.out2$solution.w)
+} # Close loop over leave one outs
+
+# Leave-one-out: graph
+path.plot(synth.res    = synth.out,
+          dataprep.res = dataprep.out,
+          Ylab         = c("Homicide Rates"),
+          Xlab         = c("Year"), 
+          Legend       = c("São Paulo","Synthetic São Paulo"),
+          Legend.position = c("bottomleft")
+) 
+
+abline(v   = 1999,
+       lty = 2)
+
+arrows(1997, 50, 1999, 50, 
+       col    = "black",
+       length = .1)
+
+text(1995, 50,
+     "Policy Change",
+     cex = .8)
+
+for(i in 1:4){
+        lines(1990:2009,
+              storegaps[,i],
+              col = "darkgrey",
+              lty = "solid")
+}
+
+lines(1990:2009,
+      dataprep.out$Y0plot %*% synth.out$solution.w,
+      col = "black",
+      lty = "dashed",
+      lwd = 2)
+
+legend(x = "bottomleft",
+       legend = c("São Paulo",
+                  "Synthetic São Paulo",
+                  "Synthetic São Paulo (leave-one-out)"
+       ),
+       lty    = c("solid", "dashed", "solid"),
+       col    = c("black", "black", "darkgrey"),
+       cex    = .8,
+       bg     = "white",
+       lwdc(2, 2, 1)
+)
+
+## Permutation test
+states <- c(11:17, 21:27, 31:33, 35, 41:43, 50:53)
+
+# Prepare data for synth
+results <- list()
+results_synth <- list()
+gaps <- list()
+
+for (i in states) {
+    dataprep.out <-
+            dataprep(df,
+                     predictors = c("state.gdp.capita",
+                                    "state.gdp.growth.percent",
+                                    "population.projection.ln",
+                                    "years.schooling.imp"
+                                    ),
+                     special.predictors = list(
+                             list("homicide.rates", 1990:1998, "mean"),
+                             list("proportion.extreme.poverty", 1990:1998, "mean"),
+                             list("gini.imp", 1990:1998, "mean")
+                             ),
+                     predictors.op = "mean",
+                     dependent     = "homicide.rates",
+                     unit.variable = "code",
+                     time.variable = "year",
+                     unit.names.variable   = "state",
+                     treatment.identifier  = i,
+                     controls.identifier   = states[which(states!=i)],
+                     time.predictors.prior = c(1990:1998),                 
+                     time.optimize.ssr     = c(1990:1998),
+                     time.plot             = c(1990:2009)
+                     )
+    results[[as.character(i)]] <- dataprep.out    
+    results_synth[[as.character(i)]] <- synth(results[[as.character(i)]])    
+    gaps[[as.character(i)]] <- results[[as.character(i)]]$Y1plot - (results[[as.character(i)]]$Y0plot %*% results_synth[[as.character(i)]]$solution.w)
+
+}
+
+# Permutation test: graph
+## Permutation test
+plot(1990:2009,
+     ylim = c(-30, 30),
+     xlim = c(1990,2009),
+     ylab = "Gap in Homicide Rates",
+     xlab = "Year"
+)
+
+for (i in states) {
+        lines(1990:2009,
+              gaps[[as.character(i)]],
+              col = "lightgrey",
+              lty = "solid",
+              lwd = 2
+        )
+}
+
+lines(1990:2009,
+      gaps[["35"]], # São Paulo
+      col = "black",
+      lty = "solid",
+      lwd = 2
+)
+
+abline(v   = 1999,
+       lty = 2)
+
+abline(h   = 0,
+       lty = 1,
+       lwd = 1)
+
+arrows(1997, 25, 1999, 25,
+       col    = "black",
+       length = .1)
+
+text(1995, 25,
+     "Policy Change",
+     cex = .8)
+
+legend(x = "bottomleft",
+       legend = c("São Paulo",
+                  "Control States"),
+       lty  = c("solid", "solid"),
+       col  = c("black", "darkgrey"),
+       cex  = .8,
+       bg  = "white",
+       lwdc(2, 2, 1)
+)
+
+# Permutation graph: states with MSPE no higher than 2x São Paulo's
+low.mspe <- c(13, 15, 17, 21, 23, 24, 25, 31, 41:43, 53)
+
+plot(1990:2009,
+     ylim = c(-30, 30),
+     xlim = c(1990,2009),
+     ylab = "Gap in Homicide Rates",
+     xlab = "Year"
+)
+
+for (i in low.mspe) {
+lines(1990:2009,
+      gaps[[as.character(i)]],
+      col = "lightgrey",
+      lty = "solid",
+      lwd = 2
+      )
+}
+
+lines(1990:2009,
+      gaps[["35"]], # São Paulo
+      col = "black",
+      lty = "solid",
+      lwd = 2
+      )
+
+abline(v   = 1999,
+       lty = 2)
+
+abline(h   = 0,
+       lty = 1, 
+       lwd = 1)
+
+arrows(1997, 25, 1999, 25, 
+       col    = "black",
+       length = .1)
+
+text(1995, 25,
+     "Policy Change",
+     cex = .8)
+
+legend(x = "bottomleft",
+       legend = c("São Paulo",
+                  "Control States (MSPE Less Than Two Times That of São Paulo)"),
+       lty    = c("solid", "solid"),
+       col    = c("black", "darkgrey"),
+       cex    = .8,
+       bg     = "white",
+       lwdc(2, 2, 1)
+)
+
+## CausalImpact
+# Uncomment the lines below to install the necessary packages
+# install.packages(c("devtools", "dtw"))
+# library(devtools)
+# install_github("google/CausalImpact")
+# install_github("klarsen1/MarketMatching", build_vignettes=TRUE)
+
+# Load packages
+library(CausalImpact)
+library(MarketMatching)
+library(ggplot2)
+
+# Prepare data
+df$year2 <- as.Date(paste(df$year, sep = "", "-01-01"))
+
+# Estimate model
+mm <- best_matches(data=df,
+                   id_variable="code",
+                   date_variable="year2",
+                   matching_variable="homicide.rates",
+                   parallel=TRUE,
+                   warping_limit=1, # warping limit=1
+                   dtw_emphasis=1, # rely only on dtw for pre-screening
+                   matches=5, # request 5 matches
+                   start_match_period="1990-01-01",
+                   end_match_period="1998-01-01")
+
+# View best matches
+subset(mm$BestMatches, code == 35) # SP
+
+# Results
+results <- MarketMatching::inference(matched_markets = mm,
+                                     test_market = "35",
+                                     end_post_period = "2009-01-01")
+
+# Predictions
+results$Predictions
+
+# Plot results
+plot(x = (1990:2009),
+     y = as.numeric(results$Predictions$Response),
+     type = "l",
+     ylim = c(0, 60),
+     xlim = c(1990, 2009), 
+     xlab = "Year",
+     ylab = "Homicide Rates",
+     cex = 3,
+     lwd = 2)
+
+lines(x = (1990:2009),
+      y = as.numeric(results$Predictions$Predicted),
+      type = "l",
+      lty = 2, 
+      cex = 3,
+      lwd = 2)
+
+arrows(1997, 50, 1999, 50, 
+       col    = "black",
+       length = .1)
+
+text(1995, 50,
+     "Policy Change",
+     cex = .8)
+
+abline(v   = 1999,
+       lty = 2)
+
+legend(x = "bottomleft",
+       legend = c("São Paulo",
+                  "Brazil"),
+       lty    = c("solid", "dashed"),
+       cex    = .8,
+       bg     = "white",
+       lwdc(2, 2)
+)
+```
+
+# Session Info
+
+```{r4,   }
+sessionInfo()
+```
+
