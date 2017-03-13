@@ -14,11 +14,11 @@ BibTeX entry:
 
 ```
 @misc{freire2016evaluating,
-title={Evaluating the Effect of Homicide Prevention Strategies in São Paulo, Brazil: A Synthetic Control Approach},
-url={osf.io/8tmhe/},
-publisher={Open Science Framework},
-author={Freire, Danilo},
-year={2016},
-month={Dec}
+  title={{Evaluating the Effect of Homicide Prevention Strategies in São Paulo, Brazil: A Synthetic Control Approach}},
+  howpublished = {\url{osf.io/vxe56}},
+  publisher={Open Science Framework},
+  author={Freire, Danilo},
+  year={2016},
+  month={Dec}
 }
 ```
