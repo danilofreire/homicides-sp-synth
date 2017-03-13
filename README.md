@@ -8,14 +8,14 @@ This Github repository contains data and documented R code for ["Evaluating the 
 
 You can cite the manuscript as: 
 
-> Freire, Danilo. 2016. "Evaluating the Effect of Homicide Prevention Strategies in São Paulo, Brazil: A Synthetic Control Approach." http://osf.io/8tmhe/
+> Freire, Danilo. 2016. "Evaluating the Effect of Homicide Prevention Strategies in São Paulo, Brazil: A Synthetic Control Approach." https://osf.io/8tmhe/
 
 BibTeX entry:
 
 ```
 @misc{freire2016evaluating,
   title={{Evaluating the Effect of Homicide Prevention Strategies in São Paulo, Brazil: A Synthetic Control Approach}},
-  howpublished = {\url{osf.io/vxe56}},
+  howpublished = {\url{http://osf.io/vxe56}},
   publisher={Open Science Framework},
   author={Freire, Danilo},
   year={2016},
