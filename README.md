@@ -15,7 +15,7 @@ BibTeX entry:
 ```
 @misc{freire2016evaluating,
   title={{Evaluating the Effect of Homicide Prevention Strategies in São Paulo, Brazil: A Synthetic Control Approach}},
-  howpublished = {\url{http://osf.io/vxe56}},
+  howpublished = {\url{http://osf.io/8tmhe}},
   publisher={Open Science Framework},
   author={Freire, Danilo},
   year={2016},
