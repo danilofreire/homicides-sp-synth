@@ -3,7 +3,6 @@
 #####################
 
 ## Please set your working directory to the data/ folder
-#setwd("~/intelligent-policing-replication-files/data/")
 
 # Clear the workspace
 rm(list = ls())
@@ -21,17 +20,17 @@ df$state <- as.character(df$state) # required by dataprep()
 # Plot: Homicide rates for Sao Paulo and Brazil (average)
 df1 <- df %>%
         mutate(homicide.sp = ifelse(homicide.rates & state == "São Paulo", homicide.rates, NA)) %>%
-        select(year, homicide.sp) 
+        select(year, homicide.sp)
 
 df2 <- df %>%
         mutate(homicide.rates1 = ifelse(homicide.rates & state != "São Paulo", homicide.rates, NA)) %>%
         group_by(year) %>%
-        summarise(homicide.br = mean(homicide.rates1, na.rm = TRUE)) 
+        summarise(homicide.br = mean(homicide.rates1, na.rm = TRUE))
 
 setEPS()
 postscript(file    = "br.eps",
-           horiz   = FALSE, 
-           onefile = FALSE, 
+           horiz   = FALSE,
+           onefile = FALSE,
            width   = 7,     # 17.8 cm
            height  = 5.25)  # 13.3 cm
 
@@ -39,7 +38,7 @@ plot(x = df1$year,
      y = df1$homicide.sp,
      type = "l",
      ylim = c(0, 60),
-     xlim = c(1990, 2009), 
+     xlim = c(1990, 2009),
      xlab = "Year",
      ylab = "Homicide Rates",
      cex = 3,
@@ -50,11 +49,11 @@ plot(x = df1$year,
 
 lines(df2$year,
       df2$homicide.br,
-      lty = 2, 
+      lty = 2,
       cex = 3,
       lwd = 2)
 
-arrows(1997, 50, 1999, 50, 
+arrows(1997, 50, 1999, 50,
        col    = "black",
        length = .1)
 
@@ -96,7 +95,7 @@ dataprep.out <-
                  unit.names.variable   = "state",
                  treatment.identifier  = 35,
                  controls.identifier   = c(11:17, 21:27, 31:33, 41:43, 50:53),
-                 time.predictors.prior = c(1990:1998),                 
+                 time.predictors.prior = c(1990:1998),
                  time.optimize.ssr     = c(1990:1998),
                  time.plot             = c(1990:2009)
                  )
@@ -113,23 +112,23 @@ print(synth.tables   <- synth.tab(
 # Plot: Main model
 setEPS()
 postscript(file    = "trends.eps",
-           horiz   = FALSE, 
-           onefile = FALSE, 
+           horiz   = FALSE,
+           onefile = FALSE,
            width   = 7,     # 17.8 cm
            height  = 5.25)  # 13.3 cm
 
 path.plot(synth.res    = synth.out,
           dataprep.res = dataprep.out,
           Ylab         = c("Homicide Rates"),
-          Xlab         = c("Year"), 
+          Xlab         = c("Year"),
           Legend       = c("São Paulo","Synthetic São Paulo"),
           Legend.position = c("bottomleft")
-) 
+)
 
 abline(v   = 1999,
        lty = 2)
 
-arrows(1997, 50, 1999, 50, 
+arrows(1997, 50, 1999, 50,
        col    = "black",
        length = .1)
 
@@ -142,15 +141,15 @@ invisible(dev.off())
 # Main model: gaps plot
 setEPS()
 postscript(file    = "gaps.eps",
-           horiz   = FALSE, 
-           onefile = FALSE, 
-           width   = 7,    
-           height  = 5.25) 
+           horiz   = FALSE,
+           onefile = FALSE,
+           width   = 7,
+           height  = 5.25)
 
 gaps.plot(synth.res    = synth.out,
-          dataprep.res = dataprep.out, 
+          dataprep.res = dataprep.out,
           Ylab         = c("Gap in Homicide Rates"),
-          Xlab         = c("Year"), 
+          Xlab         = c("Year"),
           Ylim         = c(-30, 30),
           Main         = ""
 )
@@ -158,7 +157,7 @@ gaps.plot(synth.res    = synth.out,
 abline(v   = 1999,
        lty = 2)
 
-arrows(1997, 20, 1999, 20, 
+arrows(1997, 20, 1999, 20,
        col    = "black",
        length = .1)
 
@@ -172,8 +171,8 @@ invisible(dev.off())
 
 # Weights below retrieved form dataprep.out
 # State Code  State Weight  State Name        State Abbreviation
-# 42          0.274         Santa Catarina    SC 
-# 53          0.210         Distrito Federal  DF 
+# 42          0.274         Santa Catarina    SC
+# 53          0.210         Distrito Federal  DF
 # 32          0.209         Espirito Santo    ES
 # 33          0.169         Rio de Janeiro    RJ
 # 14          0.137         Roraima           RR

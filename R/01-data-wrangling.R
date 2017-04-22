@@ -3,7 +3,6 @@
 ######################
 
 # Please set your working directory to the data/ folder
-#setwd("~/intelligent-policing-replication-files/data/")
 
 # Clear the workspace
 rm(list = ls())
@@ -137,14 +136,14 @@ data.list <- list(dep.molten,
                   ind6.molten)
 
 data1 <- Reduce(function(...) merge(..., all = TRUE), data.list)
-               
+
 # Subset and sort
 data2 <- subset(data1, year >= 1990 & year <= 2009)
 data2 <- data2[order(data2$state), ]
 rownames(data2) <- NULL
 
 # Count missing observations, calculate their percentage
-round(sapply(data2, function(x) length(which(is.na(x)))), 2)      
+round(sapply(data2, function(x) length(which(is.na(x)))), 2)
 round(sapply(data2, function(x) length(which(is.na(x)))/length(x)), 2)
 
 # Linear imputation of missing values.

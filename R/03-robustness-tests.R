@@ -3,13 +3,12 @@
 ########################
 
 # Please set your working directory to the data/ folder
-#setwd("~/intelligent-policing-replication-files/data/")
 
 # Clear the workspace
 rm(list = ls())
 
 # Load data
-df <- read.csv("/home/sussa/Documents/GitHub/intelligent-policing-replication-files1/data/df.csv", header = TRUE)
+df <- read.csv("df.csv", header = TRUE)
 
 # Prepare dataset
 df$state <- as.character(df$state) # required by dataprep()
@@ -34,7 +33,7 @@ dataprep.out1 <-
                  unit.names.variable   = "state",
                  treatment.identifier  = 35,
                  controls.identifier   = c(11:17, 21:27, 31:33, 41:43, 50:53),
-                 time.predictors.prior = c(1990:1994),                 
+                 time.predictors.prior = c(1990:1994),
                  time.optimize.ssr     = c(1990:1994),
                  time.plot             = c(1990:1998)
                  )
@@ -51,24 +50,24 @@ print(synth.tables   <- synth.tab(
 # Placebo test: graph
 setEPS()
 postscript(file    = "placebo.eps",
-           horiz   = FALSE, 
-           onefile = FALSE, 
-           width   = 7,     
-           height  = 5.25) 
+           horiz   = FALSE,
+           onefile = FALSE,
+           width   = 7,
+           height  = 5.25)
 
 path.plot(synth.res       = synth.out1,
           dataprep.res    = dataprep.out1,
           Ylab            = c("Homicide Rates"),
-          Xlab            = c("Year"), 
+          Xlab            = c("Year"),
           Legend          = c("São Paulo","Synthetic São Paulo"),
           Legend.position = c("bottomleft"),
           Ylim            = c(0, 50)
-) 
+)
 
 abline(v   = 1995,
        lty = 2)
 
-arrows(1994, 40, 1995, 40, 
+arrows(1994, 40, 1995, 40,
        col    = "black",
        length = .1)
 
@@ -84,14 +83,14 @@ invisible(dev.off())
 storegaps <- matrix(NA, length(1990:2009), 4)
 
 colnames(storegaps) <- c(14, 33, 42, 53) # RR, RJ, SC, DF
-co <- unique(df$code) 
+co <- unique(df$code)
 co <- co[-25]
 
 for(k in 1:4){
-        
+
         # Data prep for training model
-        omit <- c(14, 33, 42, 53)[k]  
-        
+        omit <- c(14, 33, 42, 53)[k]
+
         # Prepare data for synth
         dataprep.out2 <-
                 dataprep(df,
@@ -112,37 +111,37 @@ for(k in 1:4){
                          unit.names.variable   = "state",
                          treatment.identifier  = 35,
                          controls.identifier   = co[-which(co==omit)],
-                         time.predictors.prior = c(1990:1998),                 
+                         time.predictors.prior = c(1990:1998),
                          time.optimize.ssr     = c(1990:1998),
                          time.plot             = c(1990:2009)
                 )
-   
+
         # Run synth
         synth.out2 <- synth(dataprep.out2)
-        
+
         storegaps[,k] <- (dataprep.out2$Y0%*%synth.out2$solution.w)
 } # Close loop over leave one outs
 
 # Leave-one-out: graph
 setEPS()
 postscript(file    = "leave-one-out.eps",
-           horiz   = FALSE, 
-           onefile = FALSE, 
-           width   = 7,   
-           height  = 5.25) 
+           horiz   = FALSE,
+           onefile = FALSE,
+           width   = 7,
+           height  = 5.25)
 
 path.plot(synth.res    = synth.out,
           dataprep.res = dataprep.out,
           Ylab         = c("Homicide Rates"),
-          Xlab         = c("Year"), 
+          Xlab         = c("Year"),
           Legend       = c("São Paulo","Synthetic São Paulo"),
           Legend.position = c("bottomleft")
-) 
+)
 
 abline(v   = 1999,
        lty = 2)
 
-arrows(1997, 50, 1999, 50, 
+arrows(1997, 50, 1999, 50,
        col    = "black",
        length = .1)
 
@@ -205,12 +204,12 @@ for (i in states) {
                      unit.names.variable   = "state",
                      treatment.identifier  = i,
                      controls.identifier   = states[which(states!=i)],
-                     time.predictors.prior = c(1990:1998),                 
+                     time.predictors.prior = c(1990:1998),
                      time.optimize.ssr     = c(1990:1998),
                      time.plot             = c(1990:2009)
                      )
-    results[[as.character(i)]] <- dataprep.out    
-    results_synth[[as.character(i)]] <- synth(results[[as.character(i)]])    
+    results[[as.character(i)]] <- dataprep.out
+    results_synth[[as.character(i)]] <- synth(results[[as.character(i)]])
     gaps[[as.character(i)]] <- results[[as.character(i)]]$Y1plot - (results[[as.character(i)]]$Y0plot %*% results_synth[[as.character(i)]]$solution.w)
 
 }
@@ -219,10 +218,10 @@ for (i in states) {
 ## Permutation test
 setEPS()
 postscript(file    = "permutation-gaps2.eps",
-           horiz   = FALSE, 
-           onefile = FALSE, 
-           width   = 7,    
-           height  = 5.25) 
+           horiz   = FALSE,
+           onefile = FALSE,
+           width   = 7,
+           height  = 5.25)
 
 plot(1990:2009,
      ylim = c(-30, 30),
@@ -279,10 +278,10 @@ low.mspe <- c(13, 15, 17, 21, 23, 24, 25, 31, 41:43, 53)
 
 setEPS()
 postscript(file    = "low-mspe.eps",
-           horiz   = FALSE, 
-           onefile = FALSE, 
-           width   = 7,    
-           height  = 5.25) 
+           horiz   = FALSE,
+           onefile = FALSE,
+           width   = 7,
+           height  = 5.25)
 
 plot(1990:2009,
      ylim = c(-30, 30),
@@ -311,10 +310,10 @@ abline(v   = 1999,
        lty = 2)
 
 abline(h   = 0,
-       lty = 1, 
+       lty = 1,
        lwd = 1)
 
-arrows(1997, 25, 1999, 25, 
+arrows(1997, 25, 1999, 25,
        col    = "black",
        length = .1)
 
@@ -372,16 +371,16 @@ results <- MarketMatching::inference(matched_markets = mm,
 results$Predictions
 
 # Plot results
-results$PlotActualVersusExpected + 
-        ggtitle("São Paulo versus Synthetic São Paulo") + theme_bw() + 
+results$PlotActualVersusExpected +
+        ggtitle("São Paulo versus Synthetic São Paulo") + theme_bw() +
         geom_line(aes(results$PlotActualVersusExpected$data$test_market),colour="#000099")
 results$PlotCumulativeEffect
 
 # Graph
 setEPS()
 postscript(file    = "causal-impact.eps",
-           horiz   = FALSE, 
-           onefile = FALSE, 
+           horiz   = FALSE,
+           onefile = FALSE,
            width   = 7,     # 17.8 cm
            height  = 5.25)  # 13.3 cm
 
@@ -389,7 +388,7 @@ plot(x = (1990:2009),
      y = as.numeric(results$Predictions$Response),
      type = "l",
      ylim = c(0, 60),
-     xlim = c(1990, 2009), 
+     xlim = c(1990, 2009),
      xlab = "Year",
      ylab = "Homicide Rates",
      cex = 3,
@@ -398,11 +397,11 @@ plot(x = (1990:2009),
 lines(x = (1990:2009),
       y = as.numeric(results$Predictions$Predicted),
       type = "l",
-      lty = 2, 
+      lty = 2,
       cex = 3,
       lwd = 2)
 
-arrows(1997, 50, 1999, 50, 
+arrows(1997, 50, 1999, 50,
        col    = "black",
        length = .1)
 
